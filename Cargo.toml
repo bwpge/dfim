@@ -3,12 +3,15 @@ name = "dfim"
 version = "0.1.0"
 edition = "2021"
 authors = ["bwpge <bwpge.dev@gmail.com>"]
-description = "Dotfiles improved: a hackable, cross-platform dotfile manager"
+description = "Dotfiles improved: a hackable, cross-platform dotfile manager."
 homepage = "https://github.com/bwpge/dfim"
 documentation = "https://github.com/bwpge/dfim"
 repository = "https://github.com/bwpge/dfim"
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+anyhow = "1.0.81"
+clap = { version = "4.5.4", features = ["cargo", "wrap_help", "derive"] }
+
+[build-dependencies]
+vergen = { version = "8.3.1", features = ["git", "git2", "cargo"] }
