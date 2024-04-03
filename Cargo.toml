@@ -12,6 +12,8 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["cargo", "wrap_help", "derive"] }
+mlua = { version = "0.9.6", features = ["luajit", "serialize", "vendored"] }
+rustyline = "14.0.0"
 
 [build-dependencies]
 vergen = { version = "8.3.1", features = ["git", "git2", "cargo"] }

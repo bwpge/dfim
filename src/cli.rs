@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 static NAME: &str = env!("CARGO_BIN_NAME");
 
-static AFTER_HELP: &'static str = "Use -h for short descriptions and --help for more details";
+static AFTER_HELP: &str = "Use -h for short descriptions and --help for more details";
 
 #[derive(Parser, Debug)]
 #[command(
@@ -72,7 +72,18 @@ impl Cli {
 
 #[derive(Debug, Subcommand, Clone)]
 pub enum Commands {
+    /// Execute lua by block, by file, or in a basic REPL
+    Lua(LuaArgs),
     /// Show version information
     #[command(hide = true)]
     Version,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct LuaArgs {
+    /// Execute a block of lua code
+    pub block: Option<String>,
+    /// Execute a lua file
+    #[arg(short, long, conflicts_with = "block")]
+    pub file: Option<PathBuf>,
 }

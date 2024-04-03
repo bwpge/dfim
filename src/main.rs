@@ -1,4 +1,6 @@
 mod cli;
+mod commands;
+mod lua;
 
 use std::process::ExitCode;
 
@@ -8,11 +10,21 @@ use crate::cli::Cli;
 
 fn main() -> ExitCode {
     let args = Cli::parse();
-    dbg!(&args);
-
-    if args.version || matches!(args.command, Some(cli::Commands::Version)) {
-        println!("{}", args.version_string());
+    #[cfg(debug_assertions)]
+    {
+        dbg!(&args);
     }
 
-    ExitCode::SUCCESS
+    if args.version {
+        println!("{}", args.version_string());
+        return ExitCode::SUCCESS;
+    }
+
+    match commands::exec(args) {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: {e:?}");
+            ExitCode::FAILURE
+        }
+    }
 }
