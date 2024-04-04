@@ -1,7 +1,11 @@
 use anyhow::Result;
-use mlua::{Lua, Table, Value};
+use mlua::{AsChunk, Lua, Table, Value};
 
 static MOD_NAME: &str = "dfim";
+
+// TODO: builtin modules should be compiled, e.g.:
+// luajit -b -s source_file -: writes bytecode to stdout
+static BUILTIN: &[(&str, &str)] = &[("inspect", include_str!("../lua/inspect.lua"))];
 
 pub fn create_state() -> Result<Lua> {
     let lua = Lua::new();
@@ -14,8 +18,14 @@ pub fn create_state() -> Result<Lua> {
         m.set("os_name", std::env::consts::OS)?;
         m.set("os_family", std::env::consts::FAMILY)?;
         m.set("arch", std::env::consts::ARCH)?;
-
         lua.globals().set(MOD_NAME, m)?;
+
+        // preload builtins
+        for &(name, data) in BUILTIN {
+            preload_module(&lua, name, data)?;
+            lua.load(format!("{MOD_NAME}.{name}=require('{name}')"))
+                .exec()?;
+        }
     }
 
     Ok(lua)
@@ -43,4 +53,20 @@ pub fn create_module<'lua>(lua: &'lua Lua, name: &str) -> Result<Table<'lua>> {
             other.type_name()
         ),
     }
+}
+
+/// Stores the specified `data` as a preload module with the given `name`.
+///
+/// This module can later be loaded with `required("name")`, which will be returned by calling the
+/// value set in `package.preload["name"]`.
+pub fn preload_module<'lua, 'c>(
+    lua: &'lua Lua,
+    name: &str,
+    data: impl AsChunk<'lua, 'c>,
+) -> Result<()> {
+    let package: Table = lua.globals().get("package")?;
+    let preload: Table = package.get("preload")?;
+    let f = lua.load(data).into_function()?;
+
+    Ok(preload.set(name, f)?)
 }
