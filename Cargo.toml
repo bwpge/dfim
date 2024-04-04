@@ -12,7 +12,7 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["cargo", "wrap_help", "derive"] }
-mlua = { version = "0.9.6", features = ["luajit", "serialize", "vendored"] }
+mlua = { version = "0.9.6", features = ["luajit52", "serialize", "vendored"] }
 rustyline = "14.0.0"
 
 [build-dependencies]
