@@ -1,5 +1,9 @@
+mod repl;
+
 use anyhow::{bail, Result};
 use mlua::{AsChunk, FromLua, Lua, Table, Value};
+
+pub(crate) use repl::Repl;
 
 static MOD_NAME: &str = "dfim";
 
