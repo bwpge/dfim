@@ -9,7 +9,7 @@ use std::{
 use mlua::Lua;
 use vergen::EmitBuilder;
 
-const LUA_SRC_DIR: &str = "lua";
+const LUA_SRC_DIR: &str = "runtime";
 
 fn main() -> Result<(), Box<dyn Error>> {
     EmitBuilder::builder()
