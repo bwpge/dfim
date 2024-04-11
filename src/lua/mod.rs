@@ -1,3 +1,4 @@
+mod api;
 mod repl;
 
 use anyhow::{bail, Result};
@@ -23,9 +24,11 @@ pub fn create_state() -> Result<Lua> {
         m.set("os_name", std::env::consts::OS)?;
         m.set("os_family", std::env::consts::FAMILY)?;
         m.set("arch", std::env::consts::ARCH)?;
+        api::create_native_api(&lua, &m)?;
+
         lua.globals().set(MOD_NAME, m)?;
 
-        // load builtins
+        // load compiled bytecode
         for (name, data) in _GEN_BUILTIN {
             let modname = format!("{MOD_NAME}.{name}");
             let value: Value = load_module(&lua, &modname, data)?;
@@ -40,7 +43,7 @@ pub fn create_state() -> Result<Lua> {
 ///
 /// This function is adapted from [`wezterm`].
 ///
-/// [`wezterm`]: <https://github.com/wez/wezterm/blob/e5ac32f297cf3dd8f6ea280c130103f3cac4dddb/config/src/lua.rs#L33-L53>
+/// [`wezterm`]: https://github.com/wez/wezterm/blob/e5ac32f297cf3dd8f6ea280c130103f3cac4dddb/config/src/lua.rs#L33-L53
 pub fn create_module<'lua>(lua: &'lua Lua, name: &str) -> Result<Table<'lua>> {
     let package: Table = lua.globals().get("package")?;
     let loaded: Table = package.get("loaded")?;
@@ -103,7 +106,7 @@ fn create_table_in<'lua>(lua: &'lua Lua, name: &str, root: Table<'lua>) -> Resul
 /// Creates a module by loading `data` with [`Lua::load_from_function`].
 ///
 /// Generally speaking, modules are expected to return a [`Table`], but this is not strictly
-/// required. The output `data` is stored in `package.loaded["name"]`.
+/// required. The output from `data` is stored in `package.loaded["name"]`.
 pub(crate) fn load_module<'lua, 'c, C, T>(lua: &'lua Lua, name: &str, data: C) -> Result<T>
 where
     C: AsChunk<'lua, 'c>,
