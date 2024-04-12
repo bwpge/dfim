@@ -109,23 +109,20 @@ fn get_module_name(path: &Path) -> String {
     let path = path.strip_prefix(LUA_SRC_DIR).unwrap();
     let mut parts = vec![];
     for part in path.components() {
-        match part {
-            Component::Normal(p) => {
-                let s = p.to_string_lossy();
-                let s = s.strip_suffix(".lua").unwrap_or(&s).to_owned();
-                assert!(!s.is_empty(), "module part must not be empty");
-                assert!(
-                    s.chars().next().unwrap().is_alphabetic(),
-                    "module part must start with a letter"
-                );
-                assert!(
-                    s.chars()
-                        .all(|c| c.is_alphanumeric() || c == '-' || c == '_'),
-                    "module name must only contain alphanumeric, -, or _"
-                );
-                parts.push(s);
-            }
-            _ => (),
+        if let Component::Normal(p) = part {
+            let s = p.to_string_lossy();
+            let s = s.strip_suffix(".lua").unwrap_or(&s).to_owned();
+            assert!(!s.is_empty(), "module part must not be empty");
+            assert!(
+                s.chars().next().unwrap().is_alphabetic(),
+                "module part must start with a letter"
+            );
+            assert!(
+                s.chars()
+                    .all(|c| c.is_alphanumeric() || c == '-' || c == '_'),
+                "module name must only contain alphanumeric, -, or _"
+            );
+            parts.push(s);
         }
     }
 

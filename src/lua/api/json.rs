@@ -14,7 +14,7 @@ pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
     Ok(())
 }
 
-fn to_json<'lua>(_: &'lua Lua, (value, pretty): (Value, bool)) -> LuaResult<String> {
+fn to_json(_: &Lua, (value, pretty): (Value, bool)) -> LuaResult<String> {
     let s = if pretty {
         serde_json::to_string_pretty(&value).map_err(LuaError::external)?
     } else {
@@ -24,12 +24,12 @@ fn to_json<'lua>(_: &'lua Lua, (value, pretty): (Value, bool)) -> LuaResult<Stri
     Ok(s)
 }
 
-fn from_json<'lua>(lua: &'lua Lua, value: String) -> LuaResult<Value> {
+fn from_json(lua: &Lua, value: String) -> LuaResult<Value> {
     let value: JValue = serde_json::from_str(&value).map_err(LuaError::external)?;
     from_json_impl(lua, value)
 }
 
-fn from_json_file<'lua>(lua: &'lua Lua, (value, buffered): (String, bool)) -> LuaResult<Value> {
+fn from_json_file(lua: &Lua, (value, buffered): (String, bool)) -> LuaResult<Value> {
     if buffered {
         let reader = BufReader::new(File::open(value)?);
         let value: JValue = serde_json::from_reader(reader).map_err(LuaError::external)?;
@@ -41,7 +41,7 @@ fn from_json_file<'lua>(lua: &'lua Lua, (value, buffered): (String, bool)) -> Lu
 
 // adapted from wezterm, see:
 // https://github.com/wez/wezterm/blob/e5ac32f297cf3dd8f6ea280c130103f3cac4dddb/lua-api-crates/serde-funcs/src/lib.rs
-fn from_json_impl<'lua>(lua: &'lua Lua, value: JValue) -> LuaResult<Value> {
+fn from_json_impl(lua: &Lua, value: JValue) -> LuaResult<Value> {
     Ok(match value {
         JValue::Null => Value::Nil,
         JValue::Bool(b) => Value::Boolean(b),

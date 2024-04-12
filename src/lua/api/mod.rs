@@ -11,7 +11,7 @@ static REGISTER_FNS: [ApiRegisterFn; 3] = [shared::register, system::register, j
 
 pub(crate) fn create_native_api<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
     for func in REGISTER_FNS {
-        func(&lua, &root)?;
+        func(lua, root)?;
     }
 
     Ok(())
