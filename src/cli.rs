@@ -41,19 +41,26 @@ pub struct Cli {
 
 impl Cli {
     pub fn version_string(&self) -> String {
-        let mut value = vec![format!(
-            "{NAME} {} ({} {})",
-            env!("CARGO_PKG_VERSION"),
-            env!("CARGO_PKG_GIT_SHA_SHORT"),
-            env!("VERGEN_GIT_COMMIT_DATE"),
-        )];
+        let mut value = vec![];
+
+        let version = env!("CARGO_PKG_VERSION");
+        if let Some(sha) = option_env!("DFIM_GIT_SHA_SHORT") {
+            value.push(format!(
+                "{NAME} {version} ({sha} {})",
+                env!("VERGEN_GIT_COMMIT_DATE")
+            ));
+        } else {
+            value.push(format!("{NAME} {version}"))
+        }
 
         if self.verbose > 0 {
-            value.push(format!("commit-hash: {}", env!("CARGO_PKG_GIT_SHA")));
-            value.push(format!("commit-date: {}", env!("VERGEN_GIT_COMMIT_DATE")));
+            if let Some(sha) = option_env!("DFIM_GIT_SHA") {
+                value.push(format!("commit-hash: {sha}"));
+                value.push(format!("commit-date: {}", env!("VERGEN_GIT_COMMIT_DATE")));
+            }
             value.push(format!(
                 "build-target: {}",
-                env!("VERGEN_CARGO_TARGET_TRIPLE"),
+                env!("VERGEN_CARGO_TARGET_TRIPLE")
             ));
             let profile = if env!("VERGEN_CARGO_DEBUG") == "true" {
                 "debug"

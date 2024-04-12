@@ -29,7 +29,7 @@ pub fn create_state() -> Result<Lua> {
         lua.globals().set(MOD_NAME, m)?;
 
         // load compiled bytecode
-        for (name, data) in _GEN_BUILTIN {
+        for (name, data) in GEN_BUILTIN {
             let modname = format!("{MOD_NAME}.{name}");
             let value: Value = load_module(&lua, &modname, data)?;
             set_nested_field(&lua, &modname, value)?;

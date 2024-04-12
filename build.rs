@@ -39,12 +39,10 @@ fn commit_info() {
     };
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    for (val, var) in stdout
-        .split_whitespace()
-        .zip(["CARGO_PKG_GIT_SHA", "CARGO_PKG_GIT_SHA_SHORT"])
-    {
-        println!("cargo:rustc-env={var}={val}");
-    }
+    let mut parts = stdout.split_whitespace();
+    let mut next = || parts.next().unwrap();
+    println!("cargo:rustc-env=DFIM_GIT_SHA={}", next());
+    println!("cargo:rustc-env=DFIM_GIT_SHA_SHORT={}", next());
 }
 
 fn compile_lua() -> Result<(), Box<dyn Error>> {
@@ -82,7 +80,7 @@ fn compile_lua() -> Result<(), Box<dyn Error>> {
             "/// Compiled bytecode for builtin lua modules.\n\
             ///\n\
             /// Pairs have the form `(modname, bytecode)`.\n\
-            static _GEN_BUILTIN: [(&str, &[u8]); {}] = [\n",
+            static GEN_BUILTIN: [(&str, &[u8]); {}] = [\n",
             compiled.len()
         )
         .as_bytes(),
