@@ -1,7 +1,9 @@
 use anyhow::Result;
+use log::trace;
 use mlua::{Lua, Table};
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
+    trace!("Registering native module");
     root.set("hostname", lua.create_function(hostname)?)?;
     root.set("split", lua.create_function(split)?)?;
     root.set("trim", lua.create_function(trim)?)?;

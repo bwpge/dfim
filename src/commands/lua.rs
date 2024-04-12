@@ -1,9 +1,6 @@
 use anyhow::Result;
 
-use crate::{
-    cli::LuaArgs,
-    lua::{self, Repl},
-};
+use crate::{cli::LuaArgs, lua, repl::Repl};
 
 pub fn exec(args: LuaArgs) -> Result<()> {
     let lua = lua::create_state()?;
@@ -12,7 +9,7 @@ pub fn exec(args: LuaArgs) -> Result<()> {
     } else if let Some(path) = args.file {
         lua.load(path).exec()?;
     } else {
-        return Repl::new()?.run();
+        return Repl::new(lua)?.run();
     }
 
     Ok(())

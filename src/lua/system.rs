@@ -1,10 +1,12 @@
 use std::process::Command;
 
 use anyhow::Result;
+use log::trace;
 use mlua::{Lua, LuaSerdeExt, Table, Value};
 use serde::{Deserialize, Serialize};
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
+    trace!("Registering native module");
     root.set("system", lua.create_function(run)?)?;
 
     Ok(())

@@ -1,10 +1,12 @@
 use std::{fs::File, io::BufReader};
 
 use anyhow::Result;
+use log::trace;
 use mlua::{Error as LuaError, IntoLua, Lua, Result as LuaResult, Table, Value};
 use serde_json::Value as JValue;
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
+    trace!("Registering native module");
     let m = lua.create_table()?;
     m.set("encode", lua.create_function(to_json)?)?;
     m.set("decode", lua.create_function(from_json)?)?;

@@ -1,9 +1,9 @@
 use anyhow::{bail, Result};
+use log::trace;
 use mlua::{Chunk, Lua, Table};
 use rustyline::{error::ReadlineError, history::History, DefaultEditor, Editor};
 
-use crate::lua;
-
+#[derive(Debug)]
 enum Action {
     Execute(String),
     Reset,
@@ -15,12 +15,12 @@ pub(crate) struct Repl {
 }
 
 impl Repl {
-    pub(crate) fn new() -> Result<Self> {
-        let lua = lua::create_state()?;
+    pub(crate) fn new(lua: Lua) -> Result<Self> {
         Ok(Self { lua })
     }
 
     pub(crate) fn run(self) -> Result<()> {
+        trace!("Entering REPL");
         self.print_header()?;
         self.run_impl()
     }
