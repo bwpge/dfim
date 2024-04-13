@@ -3,10 +3,16 @@ mod commands;
 mod lua;
 mod repl;
 
-use std::process::ExitCode;
+use std::{
+    io::{stderr, IsTerminal},
+    process::ExitCode,
+};
 
-use clap::Parser;
-use fern::colors::{Color, ColoredLevelConfig};
+use clap::{ColorChoice, Parser};
+use fern::{
+    colors::{Color, ColoredLevelConfig},
+    Dispatch,
+};
 use log::{debug, LevelFilter};
 
 use crate::cli::Cli;
@@ -22,9 +28,9 @@ fn main() -> ExitCode {
 }
 
 fn run() -> anyhow::Result<()> {
-    setup_logger()?;
-
     let args = Cli::parse();
+    setup_logger(&args)?;
+
     #[cfg(debug_assertions)]
     {
         debug!("Handling command:\n{args:#?}");
@@ -38,36 +44,62 @@ fn run() -> anyhow::Result<()> {
     commands::exec(args)
 }
 
-fn setup_logger() -> anyhow::Result<()> {
+fn setup_logger(args: &Cli) -> anyhow::Result<()> {
+    let use_color = match args.color.unwrap_or(ColorChoice::Auto) {
+        ColorChoice::Auto => stderr().is_terminal(),
+        ColorChoice::Always => true,
+        ColorChoice::Never => false,
+    };
+
+    let level = if let Some(level) = args.log_level {
+        level.to_level_filter()
+    } else if cfg!(debug_assertions) {
+        LevelFilter::Trace
+    } else {
+        LevelFilter::Warn
+    };
+
+    if use_color {
+        color_logger()
+    } else {
+        plain_logger()
+    }
+    .level(LevelFilter::Off)
+    .level_for(env!("CARGO_PKG_NAME"), level)
+    .level_for("LUA", level)
+    .chain(std::io::stderr())
+    .apply()?;
+
+    Ok(())
+}
+
+fn color_logger() -> Dispatch {
     let colors = ColoredLevelConfig::new()
         .error(Color::Red)
         .warn(Color::Yellow)
         .debug(Color::Cyan)
         .trace(Color::BrightBlack);
 
-    let level = if cfg!(debug_assertions) {
-        LevelFilter::Trace
-    } else {
-        LevelFilter::Info
-    };
+    Dispatch::new().format(move |out, message, record| {
+        out.finish(format_args!(
+            "{color}{date} {level:<5} {target_color}[{target}]{color} {message}{reset}",
+            color = format_args!("\x1b[{}m", colors.get_color(&record.level()).to_fg_str()),
+            date = humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
+            level = record.level(),
+            target_color = format_args!("\x1b[{}m", Color::Yellow.to_fg_str()),
+            target = record.target(),
+            reset = "\x1b[0m",
+        ))
+    })
+}
 
-    fern::Dispatch::new()
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{color}{date} {level:<5} {target_color}[{target}]{color} {message}{reset}",
-                color = format_args!("\x1b[{}m", colors.get_color(&record.level()).to_fg_str()),
-                date = humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
-                level = record.level(),
-                target_color = format_args!("\x1b[{}m", Color::Yellow.to_fg_str()),
-                target = record.target(),
-                reset = "\x1b[0m",
-            ))
-        })
-        .level(LevelFilter::Off)
-        .level_for("LUA", level)
-        .level_for("dfim", level)
-        .chain(std::io::stdout())
-        .apply()?;
-
-    Ok(())
+fn plain_logger() -> Dispatch {
+    Dispatch::new().format(move |out, message, record| {
+        out.finish(format_args!(
+            "{date} {level:<5} [{target}] {message}",
+            date = humantime::format_rfc3339_seconds(std::time::SystemTime::now()),
+            level = record.level(),
+            target = record.target(),
+        ))
+    })
 }

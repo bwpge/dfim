@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, ColorChoice, Parser, Subcommand};
+use log::Level;
 
 static NAME: &str = env!("CARGO_BIN_NAME");
 
@@ -22,9 +23,15 @@ static AFTER_HELP: &str = "Use -h for short descriptions and --help for more det
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+    /// Specify when to use color output
+    #[arg(long, global = true)]
+    pub color: Option<ColorChoice>,
     /// Override the configuration file path
     #[arg(long = "config", value_name = "PATH", global = true)]
     pub config_path: Option<PathBuf>,
+    /// Set logging output level
+    #[arg( long, value_name = "LEVEL", global = true, value_parser = ["trace", "debug", "info", "warn", "error"])]
+    pub log_level: Option<Level>,
     /// Suppress all output
     #[arg(short, long, global = true, conflicts_with = "verbose")]
     pub quiet: bool,
@@ -79,7 +86,7 @@ impl Cli {
 
 #[derive(Debug, Subcommand, Clone)]
 pub enum Commands {
-    /// Execute lua by block, by file, or in a basic REPL
+    /// Execute lua by block, file, or in a basic REPL
     Lua(LuaArgs),
     /// Show version information
     #[command(hide = true)]
@@ -89,8 +96,9 @@ pub enum Commands {
 #[derive(Debug, Clone, Args)]
 pub struct LuaArgs {
     /// Execute a block of lua code
+    #[arg(short, long, conflicts_with = "file")]
     pub block: Option<String>,
     /// Execute a lua file
-    #[arg(short, long, conflicts_with = "block")]
+    #[arg(short, long)]
     pub file: Option<PathBuf>,
 }
