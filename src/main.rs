@@ -1,6 +1,9 @@
 mod cli;
 mod commands;
+mod config;
 mod lua;
+#[macro_use]
+mod macros;
 mod repl;
 
 use std::{
@@ -15,7 +18,7 @@ use fern::{
 };
 use log::{debug, LevelFilter};
 
-use crate::cli::Cli;
+use crate::{cli::Cli, config::Config};
 
 fn main() -> ExitCode {
     match run() {
@@ -30,10 +33,14 @@ fn main() -> ExitCode {
 fn run() -> anyhow::Result<()> {
     let args = Cli::parse();
     setup_logger(&args)?;
+    if let Some(path) = args.config_path.as_ref() {
+        config::Config::set_override(path)?;
+    }
 
     #[cfg(debug_assertions)]
     {
         debug!("Handling command:\n{args:#?}");
+        debug!("Config module: {:?}", Config::get_module_file());
     }
 
     if args.version {

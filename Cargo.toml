@@ -13,6 +13,7 @@ license = "MIT"
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["cargo", "wrap_help", "derive"] }
 fern = { version = "0.6.2", features = ["colored"] }
+home = "0.5.9"
 hostname = "0.4.0"
 humantime = "2.1.0"
 log = "0.4.21"
