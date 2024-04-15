@@ -5,6 +5,7 @@ mod lua;
 #[macro_use]
 mod macros;
 mod repl;
+mod source;
 
 use std::{
     io::{stderr, IsTerminal},
@@ -18,7 +19,7 @@ use fern::{
 };
 use log::{debug, LevelFilter};
 
-use crate::{cli::Cli, config::Config};
+use crate::cli::Cli;
 
 fn main() -> ExitCode {
     match run() {
@@ -40,7 +41,6 @@ fn run() -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
     {
         debug!("Handling command:\n{args:#?}");
-        debug!("Config module: {:?}", Config::get_module_file());
     }
 
     if args.version {

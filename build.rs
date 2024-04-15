@@ -80,12 +80,11 @@ fn compile_lua() -> Result<(), Box<dyn Error>> {
             "/// Compiled bytecode for builtin lua modules.\n\
             ///\n\
             /// Pairs have the form `(modname, bytecode)`.\n\
-            static GEN_BUILTIN: [(&str, &[u8]); {}] = [\n",
+            const GEN_BUILTIN: [(&str, &[u8]); {}] = [\n",
             compiled.len()
         )
         .as_bytes(),
     )?;
-    let suffix = b"]),\n";
     for (modname, f) in compiled {
         let bytes = std::fs::read(f)
             .unwrap()
@@ -95,7 +94,7 @@ fn compile_lua() -> Result<(), Box<dyn Error>> {
             .join(",");
         genf.write_all(format!("    (\"{modname}\", &[").as_bytes())?;
         genf.write_all(bytes.as_bytes())?;
-        genf.write_all(suffix)?;
+        genf.write_all(b"]),\n")?;
     }
 
     genf.write_all(b"];")?;
