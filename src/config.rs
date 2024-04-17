@@ -4,6 +4,8 @@ use std::{
 };
 
 use anyhow::{bail, Result};
+use log::debug;
+use mlua::Lua;
 
 use crate::path;
 
@@ -15,6 +17,18 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn load(lua: &Lua) -> Result<()> {
+        if let Some(f) = Self::get_module_file() {
+            debug!("Loading config module: {}", f.display());
+            let name = f.to_string_lossy().to_string();
+            lua.load(f).set_name(name).exec()?;
+        } else {
+            debug!("No config module found");
+        }
+
+        Ok(())
+    }
+
     pub fn set_override(path: &Path) -> Result<()> {
         if OVERRIDE.set(path.to_owned()).is_err() {
             bail!("failed to set config override path");
@@ -34,6 +48,11 @@ impl Config {
                 return Some(path);
             }
             return None;
+        }
+
+        let p = PathBuf::from("dfim.lua");
+        if p.is_file() {
+            return Some(p);
         }
 
         let p = config_dir().join("dfim.lua");
