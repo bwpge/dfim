@@ -40,10 +40,6 @@ pub fn create_state() -> Result<Lua> {
         update_package_path(&lua)?;
         let m = create_module(&lua, MOD_NAME)?;
         m.set("version", env!("CARGO_PKG_VERSION"))?;
-        m.set("target_triple", env!("VERGEN_CARGO_TARGET_TRIPLE"))?;
-        m.set("os_name", std::env::consts::OS)?;
-        m.set("os_family", std::env::consts::FAMILY)?;
-        m.set("arch", std::env::consts::ARCH)?;
         create_native_api(&lua, &m)?;
 
         lua.globals().set(MOD_NAME, m)?;

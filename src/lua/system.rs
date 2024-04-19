@@ -7,7 +7,13 @@ use serde::Deserialize;
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
     trace!("Registering native module");
-    root.set("spawn", lua.create_function(run)?)?;
+    root.set("target_triple", env!("VERGEN_CARGO_TARGET_TRIPLE"))?;
+    root.set("os_name", std::env::consts::OS)?;
+    root.set("os_family", std::env::consts::FAMILY)?;
+    root.set("arch", std::env::consts::ARCH)?;
+    root.set("spawn", lua.create_function(spawn)?)?;
+    root.set("hostname", lua.create_function(hostname)?)?;
+    root.set("cwd", lua.create_function(cwd)?)?;
 
     Ok(())
 }
@@ -22,7 +28,7 @@ struct RunOptions {
     clear_env: Option<bool>,
 }
 
-pub(crate) fn run<'lua>(
+pub(crate) fn spawn<'lua>(
     lua: &'lua Lua,
     (mut args, opts): (Vec<String>, Option<Table>),
 ) -> mlua::Result<Table<'lua>> {
@@ -59,4 +65,25 @@ pub(crate) fn run<'lua>(
     tbl.set("stderr", lua.create_string(output.stderr)?)?;
 
     Ok(tbl)
+}
+
+/// Lua function to get the system hostname.
+///
+/// This function is adapted from [`wezterm`].
+///
+/// [`wezterm`]: https://github.com/wez/wezterm/blob/e5ac32f297cf3dd8f6ea280c130103f3cac4dddb/config/src/lua.rs#L427-L433
+fn hostname(_: &Lua, _: ()) -> mlua::Result<String> {
+    hostname::get()
+        .map_err(mlua::Error::external)?
+        .to_str()
+        .map(|s| s.to_owned())
+        .ok_or_else(|| mlua::Error::external("hostname is not valid utf-8"))
+}
+
+/// Returns the current working directory as a string.
+fn cwd(_: &Lua, _: ()) -> mlua::Result<String> {
+    match std::env::current_dir() {
+        Ok(p) => Ok(p.to_string_lossy().to_string()),
+        Err(e) => Err(LuaError::RuntimeError(e.to_string())),
+    }
 }

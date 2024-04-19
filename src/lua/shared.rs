@@ -4,26 +4,12 @@ use mlua::{Lua, Table};
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
     trace!("Registering native module");
-    root.set("hostname", lua.create_function(hostname)?)?;
     root.set("split", lua.create_function(split)?)?;
     root.set("trim", lua.create_function(trim)?)?;
     root.set("startswith", lua.create_function(startswith)?)?;
     root.set("endswith", lua.create_function(endswith)?)?;
 
     Ok(())
-}
-
-/// Lua function to get the system hostname.
-///
-/// This function is adapted from [`wezterm`].
-///
-/// [`wezterm`]: https://github.com/wez/wezterm/blob/e5ac32f297cf3dd8f6ea280c130103f3cac4dddb/config/src/lua.rs#L427-L433
-fn hostname(_: &Lua, _: ()) -> mlua::Result<String> {
-    hostname::get()
-        .map_err(mlua::Error::external)?
-        .to_str()
-        .map(|s| s.to_owned())
-        .ok_or_else(|| mlua::Error::external("hostname is not valid utf-8"))
 }
 
 /// Lua function for splitting a string by another string.
