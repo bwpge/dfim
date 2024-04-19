@@ -1,5 +1,7 @@
 use std::{
     error::Error,
+    ffi::OsStr,
+    fmt,
     fs::File,
     io::Write,
     path::{Component, Path, PathBuf},
@@ -20,62 +22,80 @@ fn main() -> Result<(), Box<dyn Error>> {
         .emit()?;
 
     commit_info();
-    compile_lua().unwrap();
+    compile_lua();
+    wsl_info();
     Ok(())
 }
 
-// adapted from cargo implementation
-// see: https://github.com/rust-lang/cargo/blob/7b7af3077bff8d60b7f124189bc9de227d3063a9/build.rs#L50-L79
+/// Emits a `cargo:rustc-env` line.
+///
+/// Neither `key` nor `value` are checked, so the caller must ensure they produce a valid
+/// environment mapping for `rustc`.
+fn set_rustc_var<K: fmt::Display, V: fmt::Display>(key: K, value: V) {
+    println!("cargo:rustc-env={key}={value}");
+}
+
+/// Runs a command with the given `args` and gets `stdout` as a [`String`].
+fn get_command_stdout<I, S>(prog: S, args: I) -> Option<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let output = match Command::new(prog).args(args).output() {
+        Ok(output) if output.status.success() => output,
+        _ => return None,
+    };
+
+    // we want a compiler error if we don't get valid utf-8 from command,
+    // things get too weird if we're trying to handle utf-8, -16, -32, etc.
+    Some(String::from_utf8(output.stdout).unwrap())
+}
+
+/// Generates commit information, similar to the implementation of [`cargo`].
+///
+/// [`cargo`]: https://github.com/rust-lang/cargo/blob/7b7af3077bff8d60b7f124189bc9de227d3063a9/build.rs#L50-L79
 fn commit_info() {
     if !Path::new(".git").exists() {
         return;
     }
-    let output = match Command::new("git")
-        .args(["log", "-1", "--format=%H %h"])
-        .output()
-    {
-        Ok(output) if output.status.success() => output,
-        _ => return,
-    };
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stdout = get_command_stdout("git", ["log", "-1", "--format=%H %h"]).unwrap();
     let mut parts = stdout.split_whitespace();
     let mut next = || parts.next().unwrap();
-    println!("cargo:rustc-env=DFIM_GIT_SHA={}", next());
-    println!("cargo:rustc-env=DFIM_GIT_SHA_SHORT={}", next());
+    set_rustc_var("DFIM_GIT_SHA", next());
+    set_rustc_var("DFIM_GIT_SHA_SHORT", next());
 }
 
-fn compile_lua() -> Result<(), Box<dyn Error>> {
+/// Compiles lua modules in [`LUA_SRC_DIR`] and generates a source file. The path to the file will
+/// stored in `DFIM_GEN_LUA_BUILTIN`, which can be used later by [`include`].
+fn compile_lua() {
     println!("cargo:rerun-if-changed={LUA_SRC_DIR}/");
     let lua = Lua::new();
     let src_dir = format!("{LUA_SRC_DIR}/**/*.lua");
-    let out_dir = PathBuf::from(std::env::var("OUT_DIR")?);
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let mut compiled = vec![];
 
-    for path in glob::glob(&src_dir)? {
-        // figure out path stuff
-        let src = path?;
+    for path in glob::glob(&src_dir).unwrap() {
+        // get module name from path
+        let src = path.unwrap();
         let modname = get_module_name(&src);
 
         // compile
-        let func = lua.load(src.clone()).into_function()?;
+        let func = lua.load(src.clone()).into_function().unwrap();
         let bc = func.dump(true);
 
         // write bytes to file
-        let fout = out_dir.join(format!("{modname}.ljbc",));
-        std::fs::write(&fout, bc)?;
-        compiled.push((modname, fout));
+        let f = out_dir.join(format!("{modname}.ljbc",));
+        std::fs::write(&f, bc).unwrap();
+        compiled.push((modname, f));
     }
 
     // generate rust source file for bytecode
     let gen_path = out_dir.join("gen_lua_builtin.rs");
-    println!(
-        "cargo:rustc-env=DFIM_GEN_LUA_BUILTIN={}",
-        gen_path.display()
-    );
+    set_rustc_var("DFIM_GEN_LUA_BUILTIN", gen_path.display());
 
-    let mut genf = File::create(&gen_path)?;
-    genf.write_all(
+    let mut file = File::create(&gen_path).unwrap();
+    file.write_all(
         format!(
             "/// Compiled bytecode for builtin lua modules.\n\
             ///\n\
@@ -84,7 +104,8 @@ fn compile_lua() -> Result<(), Box<dyn Error>> {
             compiled.len()
         )
         .as_bytes(),
-    )?;
+    )
+    .unwrap();
     for (modname, f) in compiled {
         let bytes = std::fs::read(f)
             .unwrap()
@@ -92,20 +113,24 @@ fn compile_lua() -> Result<(), Box<dyn Error>> {
             .map(|b| format!("0x{b:02x}"))
             .collect::<Vec<_>>()
             .join(",");
-        genf.write_all(format!("    (\"{modname}\", &[").as_bytes())?;
-        genf.write_all(bytes.as_bytes())?;
-        genf.write_all(b"]),\n")?;
+        file.write_all(format!("    (\"{modname}\", &[").as_bytes())
+            .unwrap();
+        file.write_all(bytes.as_bytes()).unwrap();
+        file.write_all(b"]),\n").unwrap();
     }
 
-    genf.write_all(b"];")?;
-    genf.flush()?;
-    drop(genf);
-
-    Ok(())
+    file.write_all(b"];").unwrap();
+    file.flush().unwrap();
+    drop(file);
 }
 
-fn get_module_name(path: &Path) -> String {
-    let path = path.strip_prefix(LUA_SRC_DIR).unwrap();
+/// Converts path parts to a lua module name e.g., `foo/bar/baz` becomes `foo.bar.baz`.
+///
+/// Lua module names do not have any particular identifier requirements, but this function enforces
+/// some basic restrictions like starting with a letter and not containing punctuation aside from
+/// `-` and `_`.
+fn get_module_name<P: AsRef<Path>>(path: P) -> String {
+    let path = path.as_ref().strip_prefix(LUA_SRC_DIR).unwrap();
     let mut parts = vec![];
     for part in path.components() {
         if let Component::Normal(p) = part {
@@ -126,4 +151,19 @@ fn get_module_name(path: &Path) -> String {
     }
 
     parts.join(".")
+}
+
+/// Sets a rustc environment variable if running on WSL.
+///
+/// The value should not be used, only checked if set e.g., `option_env!("DFIM_WSL").is_some()`.
+fn wsl_info() {
+    if std::env::consts::OS != "linux" {
+        return;
+    }
+
+    if let Some(stdout) = get_command_stdout("uname", ["-a"]) {
+        if stdout.to_lowercase().contains("microsoft") {
+            set_rustc_var("DFIM_WSL", 1);
+        }
+    }
 }
