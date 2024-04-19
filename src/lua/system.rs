@@ -1,41 +1,62 @@
-use std::process::Command;
+use std::{collections::HashMap, path::PathBuf, process::Command};
 
 use anyhow::Result;
 use log::trace;
-use mlua::{Lua, LuaSerdeExt, Table, Value};
-use serde::{Deserialize, Serialize};
+use mlua::{Error as LuaError, Lua, LuaSerdeExt, Table, Value};
+use serde::Deserialize;
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
     trace!("Registering native module");
-    root.set("system", lua.create_function(run)?)?;
+    root.set("spawn", lua.create_function(run)?)?;
 
     Ok(())
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Deserialize)]
 struct RunOptions {
     #[serde(default)]
-    args: Option<Vec<String>>,
-    // TODO: add other command options
+    cwd: Option<PathBuf>,
+    #[serde(default)]
+    env: HashMap<String, String>,
+    #[serde(default)]
+    clear_env: Option<bool>,
 }
 
 pub(crate) fn run<'lua>(
     lua: &'lua Lua,
-    (prog, opts): (String, Value),
+    (mut args, opts): (Vec<String>, Option<Table>),
 ) -> mlua::Result<Table<'lua>> {
-    let opts: RunOptions = lua.from_value(opts).unwrap_or_default();
+    if args.is_empty() {
+        return Err(LuaError::RuntimeError(
+            "cannot execute empty command".into(),
+        ));
+    }
 
-    let args = opts.args.unwrap_or_default();
+    let prog = args.remove(0);
+    let opts = opts
+        .map(|t| lua.from_value(Value::Table(t)))
+        .unwrap_or_else(|| Ok(RunOptions::default()))?;
+
     let mut cmd = Command::new(prog);
     if !args.is_empty() {
         cmd.args(args);
     }
+    if let Some(cwd) = opts.cwd {
+        cmd.current_dir(cwd);
+    }
+    if opts.clear_env.unwrap_or_default() {
+        cmd.env_clear();
+    }
+    cmd.envs(&opts.env);
+    let output = cmd
+        .output()
+        .map_err(|e| LuaError::RuntimeError(e.to_string()))?;
 
-    let output = cmd.output()?;
-    let tbl = lua.create_table_with_capacity(0, 3)?;
+    let tbl = lua.create_table()?;
+    tbl.set("success", output.status.success())?;
     tbl.set("code", output.status.code())?;
-    tbl.set("stdout", lua.create_string(&output.stdout)?)?;
-    tbl.set("stderr", lua.create_string(&output.stderr)?)?;
+    tbl.set("stdout", lua.create_string(output.stdout)?)?;
+    tbl.set("stderr", lua.create_string(output.stderr)?)?;
 
     Ok(tbl)
 }
