@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{debug, error, info, log, trace, warn, Level};
+use log::{log, trace, Level};
 use mlua::{Lua, Table};
 
 pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
@@ -66,7 +66,7 @@ macro_rules! impl_level_fn {
     ($name:ident) => {
         fn $name(_: &Lua, (message, opts): (String, Option<mlua::Table>)) -> mlua::Result<()> {
             let target = fmt_target(opts);
-            $name!(target: &target, "{message}");
+            ::log::$name!(target: &target, "{message}");
 
             Ok(())
         }

@@ -4,6 +4,7 @@ mod plugin;
 mod shared;
 mod source;
 mod system;
+mod traits;
 
 use std::path::Path;
 
