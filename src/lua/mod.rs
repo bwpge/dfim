@@ -1,3 +1,4 @@
+mod consts;
 mod json;
 mod logging;
 mod plugin;
@@ -166,4 +167,17 @@ where
 {
     let f = lua.load(data).into_function()?;
     Ok(lua.load_from_function(name, f)?)
+}
+
+pub(crate) fn get_registry_flag(lua: &Lua, key: &str) -> bool {
+    lua.named_registry_value::<bool>(key).unwrap_or_default()
+}
+
+pub(crate) fn set_registry_flag(lua: &Lua, key: &str, value: bool) -> Result<()> {
+    if lua.named_registry_value::<bool>(key).is_err() {
+        bail!("registry already contains `{key}` and is not a boolean value")
+    }
+
+    lua.set_named_registry_value(key, value)?;
+    Ok(())
 }

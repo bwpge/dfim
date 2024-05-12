@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{fmt, path::PathBuf, str::FromStr};
 
 use anyhow::bail;
 use mlua::{Error as LuaError, FromLua, IntoLua, Lua, Result as LuaResult, Value};
@@ -7,7 +7,28 @@ use mlua::{Error as LuaError, FromLua, IntoLua, Lua, Result as LuaResult, Value}
 pub enum Source {
     Repo(String),
     Directory(PathBuf),
-    File(PathBuf),
+}
+
+impl Source {
+    /// Returns the source name based on the value. This value might be an empty string.
+    pub fn name(&self) -> String {
+        match &self {
+            Source::Repo(r) => r.split('/').last().unwrap_or_default().into(),
+            Source::Directory(d) => match d.components().last() {
+                Some(std::path::Component::Normal(s)) => s.to_string_lossy().into(),
+                _ => String::new(),
+            },
+        }
+    }
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Source::Repo(r) => f.write_str(r),
+            Source::Directory(d) => write!(f, "{}", d.display()),
+        }
+    }
 }
 
 impl FromStr for Source {
@@ -38,13 +59,10 @@ impl<'lua> FromLua<'lua> for Source {
                 if let Ok(d) = t.get::<&str, String>("dir") {
                     return Ok(Self::Directory(PathBuf::from(d)));
                 }
-                if let Ok(f) = t.get::<&str, String>("file") {
-                    return Ok(Self::File(PathBuf::from(f)));
-                }
                 Err(LuaError::FromLuaConversionError {
                     from: value.type_name(),
                     to: "Source",
-                    message: Some("expected [1], `dir`, or `file` key in table".into()),
+                    message: Some("expected [1] or `dir` key in table".into()),
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {
@@ -67,12 +85,6 @@ impl<'lua> IntoLua<'lua> for Source {
                 let t = lua.create_table()?;
                 let s = p.to_string_lossy().to_string();
                 t.set("dir", Value::String(lua.create_string(s)?))?;
-                Ok(Value::Table(t))
-            }
-            Source::File(p) => {
-                let t = lua.create_table()?;
-                let s = p.to_string_lossy().to_string();
-                t.set("file", Value::String(lua.create_string(s)?))?;
                 Ok(Value::Table(t))
             }
         }
@@ -106,13 +118,6 @@ mod tests {
         let lua = Lua::new();
         let value: Source = call(&lua, "{dir = 'foo'}");
         assert_eq!(value, Source::Directory("foo".into()))
-    }
-
-    #[test]
-    fn from_table_file() {
-        let lua = Lua::new();
-        let value: Source = call(&lua, "{file = 'foo'}");
-        assert_eq!(value, Source::File("foo".into()))
     }
 
     #[test]
