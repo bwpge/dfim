@@ -17,7 +17,7 @@ use fern::{
     colors::{Color, ColoredLevelConfig},
     Dispatch,
 };
-use log::{debug, LevelFilter};
+use log::LevelFilter;
 
 use crate::cli::Cli;
 
@@ -40,7 +40,7 @@ fn run() -> anyhow::Result<()> {
 
     #[cfg(debug_assertions)]
     {
-        debug!("Handling command:\n{args:#?}");
+        log::debug!("Handling command:\n{args:#?}");
     }
 
     if args.version {

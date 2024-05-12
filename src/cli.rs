@@ -29,8 +29,8 @@ pub struct Cli {
     /// Override the configuration file path
     #[arg(long = "config", value_name = "PATH", global = true)]
     pub config_path: Option<PathBuf>,
-    /// Set logging output level
-    #[arg( long, value_name = "LEVEL", global = true, value_parser = ["trace", "debug", "info", "warn", "error"])]
+    /// Set logging output level (trace, debug, info, warn, error)
+    #[arg(long, value_name = "LEVEL", global = true)]
     pub log_level: Option<Level>,
     /// Suppress all output
     #[arg(short, long, global = true, conflicts_with = "verbose")]

@@ -11,6 +11,7 @@ pub fn register<'lua>(lua: &'lua Lua, root: &'lua Table<'lua>) -> Result<()> {
     root.set("os_name", std::env::consts::OS)?;
     root.set("os_family", std::env::consts::FAMILY)?;
     root.set("arch", std::env::consts::ARCH)?;
+    root.set("is_windows", std::env::consts::OS == "windows")?;
     root.set("is_wsl", option_env!("DFIM_WSL").is_some())?;
     root.set("spawn", lua.create_function(spawn)?)?;
     root.set("hostname", lua.create_function(hostname)?)?;
